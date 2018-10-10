@@ -1,6 +1,7 @@
 package com.morpheus.hilomysql;
 
 import android.os.AsyncTask;
+import android.support.annotation.UiThread;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.LinearLayoutManager;
@@ -34,12 +35,14 @@ public class MainActivity extends AppCompatActivity
         rcLista.setLayoutManager(new LinearLayoutManager(this));
 
         //Hilos de carga
-        spCarriers.post(hiloSpinner);
+        //spCarriers.post(hiloSpinner);
         rcLista.post(hiloRecycler);
+        HiloSpinnerAsync hilo = new HiloSpinnerAsync(spCarriers);
+        hilo.execute();
     }
 
     //Hilo de carga del Spinner
-    Runnable hiloSpinner = new Runnable()
+    Thread hiloSpinner = new Thread()
     {
         @Override
         public void run()
@@ -68,6 +71,62 @@ public class MainActivity extends AppCompatActivity
             });
         }
     };
+
+    //Hilo Asynctask
+    private class HiloSpinnerAsync extends AsyncTask<Void, Void, Void>
+    {
+        private Spinner spinner;
+
+        public HiloSpinnerAsync(Spinner spinner)
+        {
+            this.spinner = spinner;
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids)
+        {
+            DAO.getInstance().getCarrier(MainActivity.this, new OnResultListListener<String>()
+            {
+                @Override
+                public void onSuccess(final List<String> result)
+                {
+                    try
+                    {
+                        Thread.sleep(2000);
+                    } catch (InterruptedException e)
+                    {
+                        e.printStackTrace();
+                    }
+
+                    //Cambia al hilo principal para cargar el resultado en la vista
+                    runOnUiThread(new Runnable()
+                    {
+                        @Override
+                        public void run()
+                        {
+                            ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, android.R.layout.simple_spinner_dropdown_item, result);
+                            spCarriers.setAdapter(adapter);
+                        }
+                    });
+                }
+
+                @Override
+                public void onFailed(final String message, final int error)
+                {
+                    runOnUiThread(new Runnable()
+                    {
+                        @Override
+                        public void run()
+                        {
+                            Toast.makeText(MainActivity.this, message + " " +  error, Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
+
+            return null;
+        }
+    }
 
     //Hilo de carga del recycler
     Runnable hiloRecycler = new Runnable()

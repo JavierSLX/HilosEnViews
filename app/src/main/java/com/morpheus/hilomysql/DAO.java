@@ -11,7 +11,7 @@ import java.util.List;
 
 public class DAO
 {
-    public static DAO dao;
+    private static DAO dao;
 
     private DAO()
     {
